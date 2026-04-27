@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>スピードクイズバトル - 悪の野望 -</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #1a1a1a;
+        color: #fff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+    #game-container {
+        width: 600px;
+        height: 850px;
+        background-color: #333;
+        border: 4px solid #fff;
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    #stage-bg {
+        flex: 3;
+        background-color: darkgreen;
+        transition: background-color 1s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    #enemy-area { text-align: center; margin-top: 20px; }
+    #enemy-name { font-size: 24px; font-weight: bold; }
+    #enemy-hp-bar { width: 300px; height: 20px; background: #555; border: 2px solid #fff; margin-top: 5px; }
+    #enemy-hp-fill { height: 100%; background: red; width: 100%; transition: width 0.3s; }
+
+    #player-area { position: absolute; bottom: 10px; left: 20px; width: 250px; }
+    #player-hp-bar { width: 100%; height: 20px; background: #555; border: 2px solid #fff; }
+    #player-hp-fill { height: 100%; background: limegreen; width: 100%; transition: width 0.3s; }
+
+    #ui-area {
+        flex: 4;
+        background-color: #222;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+    #item-area {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .item-btn {
+        background: #3a6351; color: white; border: 1px solid #aaa;
+        border-radius: 5px; padding: 6px 12px; cursor: pointer;
+        font-size: 13px; font-weight: bold; transition: background 0.2s;
+    }
+    .item-btn:hover:not(:disabled) { background: #4a836a; }
+    .item-btn:disabled { background: #444; color: #888; cursor: not-allowed; border-color: #555; }
+
+    #turn-indicator {
+        font-size: 20px; font-weight: bold; color: gold;
+        text-align: center; margin-bottom: 10px;
+    }
+    #timer-bar { width: 100%; height: 10px; background: #555; margin-bottom: 15px; }
+    #timer-fill { height: 100%; background: cyan; width: 100%; }
+
+    #quiz-area { display: none; flex-direction: column; height: 100%; }
+    #question-text { font-size: 18px; margin-bottom: 5px; min-height: 60px; line-height: 1.4; }
+
+    #action-result {
+        font-size: 18px; font-weight: bold; color: #ffeb3b;
+        text-align: center; margin-bottom: 10px; min-height: 24px;
+    }
+    .option-btn {
+        background: #444; border: 2px solid #aaa; color: #fff;
+        padding: 10px; margin-bottom: 8px; cursor: pointer;
+        font-size: 15px; border-radius: 5px; transition: background 0.2s;
+        width: 100%; text-align: left;
+    }
+    .option-btn:hover { background: #666; }
+
+    #text-answer-container { display: none; flex-direction: column; gap: 10px; align-items: center; }
+    #text-answer-input { 
+        width: 80%; padding: 12px; font-size: 18px; border-radius: 5px; 
+        border: 2px solid #fff; background: #111; color: #fff; text-align: center;
+    }
+    #text-answer-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #555; color: white; border: 1px solid white; border-radius: 5px; }
+
+    #rhythm-area { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+    #rhythm-track { width: 80%; height: 40px; background: #444; border: 2px solid #fff; position: relative; margin-bottom: 20px; }
+    #rhythm-target { position: absolute; left: 50%; top: 0; width: 10px; height: 40px; background: rgba(255,255,0,0.5); transform: translateX(-50%); }
+    #rhythm-note { position: absolute; left: 0; top: 5px; width: 30px; height: 30px; background: cyan; border-radius: 50%; }
+    #rhythm-btn { padding: 15px 40px; font-size: 20px; background: #d9534f; color: white; border: none; border-radius: 10px; cursor: pointer; }
+
+    #log-area { height: 80px; background: #111; color: #ddd; padding: 10px; overflow-y: auto; font-size: 14px; border-top: 2px solid #fff; }
+
+    #start-screen, #intermission-screen {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        background: rgba(0,0,0,0.8); display: flex; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 10;
+    }
+    #intermission-screen { display: none; }
+    .main-btn { padding: 15px 30px; font-size: 24px; cursor: pointer; border-radius: 10px; background: #444; color: white; border: 2px solid #fff; }
+
+    #clear-screen {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        background: rgba(0,0,0,0.92); display: none; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 10;
+    }
+    #clear-top-zone {
+        position: absolute; top: 0; left: 0; width: 100%; height: 80px;
+        cursor: pointer; z-index: 11;
+    }
+    #clear-tap-hint {
+        position: absolute; bottom: 20px; font-size: 13px; color: #555;
+        text-align: center; pointer-events: none;
+    }
+
+    #crack-overlay {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        z-index: 20; display: none; pointer-events: none;
+        overflow: hidden;
+    }
+    .crack-top {
+        position: absolute; top: 0; left: 0; width: 100%;
+        background: #000; transition: height 0.6s ease-in;
+    }
+    .crack-bottom {
+        position: absolute; bottom: 0; left: 0; width: 100%;
+        background: #000; transition: height 0.6s ease-in;
+    }
+
+    #secret-intro {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        background: #1a0033; display: none; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 25; text-align: center;
+    }
+    #secret-intro h2 {
+        color: #df80ff; font-size: 28px; text-shadow: 0 0 20px #9900ff;
+        animation: pulse 0.8s infinite alternate;
+    }
+    @keyframes pulse { from { opacity: 0.6; } to { opacity: 1; } }
+
+    #wisdom-active-notice {
+        display: none; text-align: center; font-size: 13px;
+        color: cyan; font-weight: bold; margin-bottom: 4px;
+    }
+
+    #skip-notice {
+        font-size: 20px; font-weight: bold; color: orange;
+        text-align: center; min-height: 28px; margin-bottom: 6px;
+    }
+</style>
+</head>
+<body>
+<div id="game-container">
+
+    <div id="start-screen">
+        <h1 style="color:white; text-align:center;">スピードクイズバトル<br>- 悪の野望 -</h1>
+        <button class="main-btn" onclick="startGame()">ゲームスタート</button>
+    </div>
+
+    <div id="intermission-screen">
+        <h2 id="intermission-msg" style="color:white; text-align:center;">勝利！</h2>
+        <button class="main-btn" onclick="startRound()">次のステージに行く</button>
+    </div>
+
+    <div id="clear-screen">
+        <div id="clear-top-zone"></div>
+        <h2 style="color:lime; font-size:48px; text-shadow:0 0 20px lime;">GAME CLEAR!</h2>
+        <p style="color:#aaa; font-size:16px; margin-top:10px;">プレイヤーは世界を救った！</p>
+        <div id="clear-tap-hint">（画面上部を素早く3回タップすると…？）</div>
+    </div>
+
+    <div id="crack-overlay">
+        <div class="crack-top" id="crack-top" style="height:0;"></div>
+        <div class="crack-bottom" id="crack-bottom" style="height:0;"></div>
+    </div>
+
+    <div id="secret-intro">
+        <h2 id="secret-intro-text">・・・・</h2>
+        <p style="color:#bf60ff; font-size:22px; margin-top:20px;">「ゼルファ」が現れた！</p>
+    </div>
+
+    <div id="stage-bg">
+        <div style="position:absolute; top:10px; left:10px; font-weight:bold; font-size:18px; color:rgba(255,255,255,0.7);" id="stage-name-display">STAGE: 森林</div>
+        <div id="enemy-area">
+            <div id="enemy-name">恐ろしい害獣「ガルドファング」</div>
+            <div id="enemy-hp-bar"><div id="enemy-hp-fill"></div></div>
+            <div id="enemy-hp-text">100 / 100</div>
+        </div>
+        <div id="player-area">
+            <div>プレイヤー(HP)</div>
+            <div id="player-hp-bar"><div id="player-hp-fill"></div></div>
+            <div id="player-hp-text">100 / 100</div>
+        </div>
+    </div>
+
+    <div id="ui-area">
+        <div id="item-area">
+            <button class="item-btn" id="btn-potion"    onclick="useItem('potion')">ポーション (1)</button>
+            <button class="item-btn" id="btn-bearOil"   onclick="useItem('bearOil')">熊の油 (0)</button>
+            <button class="item-btn" id="btn-wisdom"    onclick="useItem('wisdom')">科学者の知恵 (0)</button>
+            <button class="item-btn" id="btn-croquette" onclick="useItem('croquette')">コロッケ (0)</button>
+        </div>
+
+        <div id="skip-notice"></div>
+        <div id="wisdom-active-notice">💡 科学者の知恵 発動中！</div>
+        <div id="turn-indicator">プレイヤーのターン！</div>
+        <div id="timer-bar"><div id="timer-fill"></div></div>
+
+        <div id="quiz-area">
+            <div id="question-text">ここに問題が出ます</div>
+            <div id="action-result"></div>
+            <div id="options"></div>
+            <div id="text-answer-container">
+                <input type="text" id="text-answer-input" placeholder="答えを入力...">
+                <button id="text-answer-btn" onclick="submitTextAnswer()">決定</button>
+            </div>
+        </div>
+
+        <div id="rhythm-area">
+            <h3 style="margin-top:0;">回復チャンス！中央で押せ！</h3>
+            <div id="rhythm-track">
+                <div id="rhythm-target"></div>
+                <div id="rhythm-note"></div>
+            </div>
+            <button id="rhythm-btn" onclick="hitRhythm()">TAP!</button>
+        </div>
+    </div>
+
+    <div id="log-area">バトル開始！</div>
+</div>
+
+<script>
+// ===================== データ定義 =====================
+const enemies = [
+    {
+        name: '恐ろしい害獣「ガルドファング」', shortName: 'ｶﾞﾙﾄﾌｧﾝｸﾞ', maxHp: 100,
+        bg: 'darkgreen', stage: '森林', baseAtk: 15, limit: 10000,
+        lines: { start: "ガオォォォォォォォォ", win: "いただきまぁぁぁぁぁす", lose: "グッ" }
+    },
+    {
+        name: 'ﾏｯﾄﾞｻｲｴﾝﾃｨｽﾄ「ゼノ」', shortName: 'ゼノ', maxHp: 150,
+        bg: 'slategray', stage: '研究所', baseAtk: 30, limit: 6000,
+        lines: { start: "何者だ?", win: "これが科学の力だ", lose: "仕方ない、先へ進め" }
+    },
+    {
+        name: '世界を陥れる魔王「ゼルヴァ」', shortName: 'ゼルヴァ', maxHp: 200,
+        bg: 'darkred', stage: '魔王の玉座', baseAtk: 40, limit: 5500,
+        lines: { start: "私の野望を邪魔するものは誰だ", win: "残念だったな", lose: "なっこの私が" }
+    },
+    {
+        name: '裏ボス「アルス＝ネメシス」', shortName: 'ｱﾙｽ⁼ﾈﾒｼｽ', maxHp: 400,
+        bg: '#1a0033', stage: '魔界', baseAtk: 45, limit: 5000,
+        lines: { start: "……………", win: "………………………", lose: "…………………………" }
+    }
+];
+
+const quizPool = [
+    { q: "次の曲のうち、最後に採用されたのはどれ?", options: ["JRE-IKST-020", "JRE-IKST-014", "JRE-IKST-021", "JRE-IKST-019"], ans: 0 },
+    { q: "次の駅のうち、横浜駅の再変更より後にIKST化された駅はどれ?", options: ["衣笠", "板橋", "桜木町", "新三郷"], ans: 0 },
+    { q: "次の曲のうち、栃木県内で初めてIKSTが導入された日に消滅したのはどれ？", options: ["おはよう", "幸福の銀レール", "夏色の時間", "木漏れ日の散歩道"], ans: 0 },
+    { q: "次の曲のうち、市川大野にIKSTが導入された日に消滅したのはどれ？", options: ["木漏れ日の散歩道", "幸福の銀レール", "夏色の時間", "おはよう"], ans: 0 },
+    { q: "IKST-042の初採用駅は?", options: ["銚子", "佐原", "成田", "佐倉"], ans: 0 },
+    { q: "次の駅のうち、4/20日時点で発車ベルスイッチが撤去された駅は?", options: ["武蔵小杉", "立川", "登戸", "矢向"], ans: 0 },
+    { q: "次の日付のうち、その日の変更が全て再変更である日は?", options: ["10/21", "12/15", "5/6", "1/19"], ans: 0 },
+    { q: "次の駅のうち、「スプリングボックス」の採用歴がない駅はどれ？", options: ["東大宮", "浦和", "日野春", "越谷レイクタウン"], ans: 0 },
+    { q: "「レインシャワー」の採用駅は?", options: ["赤坂見附", "大手町", "淡路町", "池袋"], ans: 0 },
+    { q: "「潤い電車」の採用駅は？", options: ["大手町", "赤坂見附", "淡路町", "池袋"], ans: 0 },
+    { q: "与野駅にIKSTが導入されたのは何日", options: ["5/6", "10/21", "12/15", "1/19"], ans: 0 },
+    { q: "IKST-003の3番目の導入駅は？", options: ["代々木", "吉祥寺", "津田沼", "船橋"], ans: 0 },
+    { q: "めだかの学校 Ver.Fは三鷹駅〇番線で採用されている", options: ["4", "6", "2", "1"], ans: 0 },
+    { q: "新検見川駅のナンバリングは?", options: ["JB36", "JB04", "JB14", "JB29"], ans: 0 },
+    { q: "次の駅のうち、根府川駅と同日にIKST化された駅は？", options: ["真鶴", "熱海", "鴨宮", "大磯"], ans: 0 },
+    { q: "JRE-IKSTT-021-13を一度も採用されたこのがない駅は？", options: ["小金井", "古河", "宇都宮", "雀宮"], ans: 0 },
+    { q: "同じ曲が次のような切られ方をされるとき、最も長く流れるのはどれ?", options: ["大宮切り", "新座切り", "余韻切り", "伊勢崎切り"], ans: 0 },
+    { q: "代々木上原駅の小田急線でのナンバリングは？", options: ["OH 05", "OH-04", "OH-03", "OH-39"], ans: 0 },
+    { q: "立川駅のホームで最も使用頻度が少ないのは？", options: ["2番線", "3番線", "5番線", "8番線"], ans: 0 },
+    { q: "コンギョおじさんの乗っていた電車は？", options: ["武蔵野線府中本町方面", "武蔵野線西船橋方面", "京浜東北線大宮方面", "京浜東北線大船方面"], ans: 0 },
+    { q: "小田急おばさんの降りた駅は？", options: ["千歳船橋", "千歳烏山", "武蔵船橋", "武蔵烏山"], ans: 0 },
+    { q: "せせらぎ（フェードアウト）の旧採用駅は？", options: ["上溝", "番田", "原当麻", "下溝"], ans: 0 },
+    { q: "首都圏9-6番は塩尻駅〇番線で使用されている", options: ["3", "1", "5", "6"], ans: 0 }
+];
+
+const textQuizPool = [
+    { q: "成瀬駅のナンバリングは? JHの後に続く数字二桁で答えること", ans: "22" },
+    { q: "小田原駅で採用されているご当地曲の名前は? verは示さなくてよい", ans: "お猿のかごや" },
+    { q: "Verde Rayo（速テンポ）の最後の採用駅は?(ヒント　中央線)", ans: "高尾" },
+    { q: "丸ノ内線B線の乗降促進メロディは?", ans: "舞フラワー" },
+    { q: "水戸駅3・4番線では「日本庭園の〇〇〇〇」がかつて使われていた", ans: "水と草木" },
+    { q: "東北新幹線のホームでWater crownがかつて使われていた駅は?", ans: "くりこま高原" }
+];
+
+const easyQuestion = { q: "1 + 1 = ?", options: ["2", "11", "0", "3"], ans: 0 };
+
+// ===================== ゲーム状態 =====================
+let currentRound = 0;
+let playerMaxHp = 100;
+let playerHp = 100;
+let enemyHp = 0;
+let isPlayerTurn = true;
+let actionCounter = 0;
+
+let playerIsSkipped = false;
+let enemyIsSkipped = false;
+
+let inventory = { potion: 1, bearOil: 0, wisdom: 0, croquette: 0 };
+let flagSkipEnemyTurn = false;
+let flagForceMathQuestion = false;
+let wisdomActiveThisTurn = false;
+
+let currentQuestionType = 'choice'; 
+let currentCorrectText = "";
+
+let timerInterval;
+let timeLimit = 5000;
+let remainingTime = 0;
+let rhythmAnimFrame;
+
+let clearTapCount = 0;
+let clearTapTimer = null;
+
+// ===================== DOM参照 =====================
+const logArea      = document.getElementById('log-area');
+const resultArea   = document.getElementById('action-result');
+const skipNotice   = document.getElementById('skip-notice');
+const wisdomNotice = document.getElementById('wisdom-active-notice');
+const textInputContainer = document.getElementById('text-answer-container');
+const textInputField = document.getElementById('text-answer-input');
+
+// ===================== ユーティリティ =====================
+function log(msg) {
+    logArea.innerHTML += `<div>${msg}</div>`;
+    logArea.scrollTop = logArea.scrollHeight;
+}
+
+function updatePlayerHpBar() {
+    const pct = Math.max(0, playerHp / playerMaxHp * 100);
+    document.getElementById('player-hp-fill').style.width = pct + '%';
+    document.getElementById('player-hp-text').innerText = `${Math.max(0, playerHp)} / ${playerMaxHp}`;
+}
+
+function updateEnemyHpBar() {
+    const enemy = enemies[currentRound];
+    const pct = Math.max(0, enemyHp / enemy.maxHp * 100);
+    document.getElementById('enemy-hp-fill').style.width = pct + '%';
+    document.getElementById('enemy-hp-text').innerText = `${Math.max(0, enemyHp)} / ${enemy.maxHp}`;
+}
+
+function updateItemUI() {
+    const defs = [
+        { id: 'btn-potion',    key: 'potion',    label: 'ポーション' },
+        { id: 'btn-bearOil',   key: 'bearOil',   label: '熊の油' },
+        { id: 'btn-wisdom',    key: 'wisdom',     label: '科学者の知恵' },
+        { id: 'btn-croquette', key: 'croquette',  label: 'コロッケ' }
+    ];
+    defs.forEach(d => {
+        const btn = document.getElementById(d.id);
+        btn.innerText = `${d.label} (${inventory[d.key]})`;
+        btn.disabled = inventory[d.key] <= 0;
+    });
+}
+
+function showOptions(visible) {
+    document.getElementById('options').style.display = visible ? 'block' : 'none';
+    document.getElementById('timer-bar').style.visibility = 'visible';
+}
+
+function showTextInput(visible) {
+    textInputContainer.style.display = visible ? 'flex' : 'none';
+    if(visible) {
+        textInputField.value = "";
+        textInputField.focus();
+    }
+}
+
+// ===================== アイテム =====================
+window.useItem = function(itemKey) {
+    if (inventory[itemKey] <= 0 || playerHp <= 0) return;
+    inventory[itemKey]--;
+
+    if (itemKey === 'potion') {
+        playerHp = Math.min(playerMaxHp, playerHp + 20);
+        log("<span style='color:lime;'>💊ポーションを使った！HPが 20 回復した。</span>");
+        updatePlayerHpBar();
+    } else if (itemKey === 'croquette') {
+        playerHp = Math.min(playerMaxHp, playerHp + 20);
+        log("<span style='color:lime;'>🥔コロッケを食べた！HPが 20 回復した。</span>");
+        updatePlayerHpBar();
+    } else if (itemKey === 'bearOil') {
+        flagSkipEnemyTurn = true;
+        log("<span style='color:yellow;'>🐻熊の油を使った！次の相手のターンを強制スキップする！</span>");
+    } else if (itemKey === 'wisdom') {
+        flagForceMathQuestion = true;
+        applyWisdomNow();
+        log("<span style='color:cyan;'>💡科学者の知恵を使った！今のクイズが簡単になり、制限時間がリセットされた！</span>");
+    }
+    updateItemUI();
+};
+
+function applyWisdomNow() {
+    if (document.getElementById('quiz-area').style.display !== 'flex') return;
+    if (currentQuestionType === 'text') return;
+
+    clearInterval(timerInterval);
+    wisdomActiveThisTurn = true;
+    flagForceMathQuestion = false;
+    wisdomNotice.style.display = 'block';
+    document.getElementById('question-text').innerText = easyQuestion.q;
+    let optionsHtml = "";
+    let shuffled = [0,1,2,3].sort(() => Math.random() - 0.5);
+    shuffled.forEach(i => {
+        optionsHtml += `<button class="option-btn" onclick="answer(${i}, ${easyQuestion.ans})">${easyQuestion.options[i]}</button>`;
+    });
+    document.getElementById('options').innerHTML = optionsHtml;
+    showOptions(true);
+    showTextInput(false);
+    remainingTime = timeLimit;
+    document.getElementById('timer-fill').style.width = '100%';
+    timerInterval = setInterval(() => {
+        remainingTime -= 50;
+        document.getElementById('timer-fill').style.width = (remainingTime / timeLimit * 100) + "%";
+        if (remainingTime <= 0) {
+            clearInterval(timerInterval);
+            timeOut();
+        }
+    }, 50);
+}
+
+// ===================== ゲーム進行 =====================
+window.startGame = function() {
+    document.getElementById('start-screen').style.display = 'none';
+    playerHp = playerMaxHp;
+    currentRound = 0;
+    inventory = { potion: 1, bearOil: 0, wisdom: 0, croquette: 0 };
+    flagSkipEnemyTurn = false;
+    flagForceMathQuestion = false;
+    playerIsSkipped = false;
+    enemyIsSkipped = false;
+    updateItemUI();
+    updatePlayerHpBar();
+    startRound();
+};
+
+window.startRound = function() {
+    document.getElementById('intermission-screen').style.display = 'none';
+    if (currentRound >= 3 && currentRound < 3) { 
+        showGameClear();
+        return;
+    }
+    if (currentRound > 0) {
+        playerHp = Math.min(playerMaxHp, playerHp + 15);
+        log("<span style='color:lime;'>ステージ移動によりHPが 15 回復した！</span>");
+        updatePlayerHpBar();
+    }
+    startEnemy();
+};
+
+function startEnemy() {
+    const enemy = enemies[currentRound];
+    enemyHp = enemy.maxHp;
+    timeLimit = enemy.limit;
+    document.getElementById('stage-bg').style.backgroundColor = enemy.bg;
+    document.getElementById('stage-name-display').innerText = `STAGE: ${enemy.stage}`;
+    document.getElementById('enemy-name').innerText = enemy.name;
+    updateEnemyHpBar();
+    log(`<b>ラウンド ${currentRound + 1}：${enemy.name} が現れた！</b>`);
+
+    isPlayerTurn = true;
+    actionCounter = 0;
+    playerIsSkipped = false;
+    enemyIsSkipped = false;
+
+    skipNotice.innerText = "";
+    wisdomNotice.style.display = 'none';
+    wisdomActiveThisTurn = false;
+
+    resultArea.innerText = `${enemy.shortName}「${enemy.lines.start}」`;
+    document.getElementById('quiz-area').style.display = 'none';
+    document.getElementById('rhythm-area').style.display = 'none';
+    document.getElementById('turn-indicator').innerText = "";
+
+    setTimeout(nextAction, 2000);
+}
+
+function nextAction() {
+    if (playerHp <= 0 || enemyHp <= 0) return;
+    actionCounter++;
+    wisdomActiveThisTurn = false;
+    wisdomNotice.style.display = 'none';
+
+    if (actionCounter % 4 === 0) {
+        startRhythmPhase();
+        return;
+    }
+
+    if (actionCounter > 1) isPlayerTurn = !isPlayerTurn;
+
+    if (!isPlayerTurn && flagSkipEnemyTurn) {
+        log("<span style='color:yellow;'>【熊の油の効果】相手のターンをスキップ！プレイヤーの連続攻撃！</span>");
+        flagSkipEnemyTurn = false;
+        isPlayerTurn = true;
+    }
+
+    const currentIsSkipped = isPlayerTurn ? playerIsSkipped : enemyIsSkipped;
+    if (currentIsSkipped) {
+        const who = isPlayerTurn ? "プレイヤー" : enemies[currentRound].shortName;
+        skipNotice.innerText = `${who}は行動できない！`;
+        if (isPlayerTurn) playerIsSkipped = false;
+        else enemyIsSkipped = false;
+        setTimeout(() => {
+            skipNotice.innerText = "";
+            setTimeout(nextAction, 0);
+        }, 1500);
+        return;
+    }
+
+    skipNotice.innerText = "";
+    startQuizPhase();
+}
+
+function startQuizPhase() {
+    document.getElementById('quiz-area').style.display = 'flex';
+    document.getElementById('rhythm-area').style.display = 'none';
+    resultArea.innerText = "";
+    document.getElementById('turn-indicator').innerText = isPlayerTurn
+        ? "【プレイヤーのターン】素早く答えて攻撃！"
+        : "【相手のターン】素早く答えて防御！";
+    document.getElementById('turn-indicator').style.color = isPlayerTurn ? "cyan" : "red";
+
+    let actualLimit = timeLimit;
+    currentQuestionType = 'choice';
+
+    // 裏ボス条件: 制限時間を4倍に変更
+    if (currentRound === 3 && enemyHp <= 200 && Math.random() < 0.5) {
+        currentQuestionType = 'text';
+        actualLimit = timeLimit * 4; 
+    }
+
+    if (currentQuestionType === 'text') {
+        showOptions(false);
+        showTextInput(true);
+        const qData = textQuizPool[Math.floor(Math.random() * textQuizPool.length)];
+        document.getElementById('question-text').innerText = qData.q + "\n(制限時間4倍！)";
+        currentCorrectText = qData.ans;
+    } else {
+        showOptions(true);
+        showTextInput(false);
+        let qData;
+        if (flagForceMathQuestion) {
+            qData = easyQuestion;
+            flagForceMathQuestion = false;
+            wisdomActiveThisTurn = true;
+            wisdomNotice.style.display = 'block';
+        } else {
+            qData = quizPool[Math.floor(Math.random() * quizPool.length)];
+        }
+        let optionsHtml = "";
+        let shuffled = [0,1,2,3].sort(() => Math.random() - 0.5);
+        shuffled.forEach(i => {
+            optionsHtml += `<button class="option-btn" onclick="answer(${i}, ${qData.ans})">${qData.options[i]}</button>`;
+        });
+        document.getElementById('question-text').innerText = qData.q;
+        document.getElementById('options').innerHTML = optionsHtml;
+    }
+
+    remainingTime = actualLimit;
+    document.getElementById('timer-fill').style.width = '100%';
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        remainingTime -= 50;
+        document.getElementById('timer-fill').style.width = (remainingTime / actualLimit * 100) + "%";
+        if (remainingTime <= 0) {
+            clearInterval(timerInterval);
+            timeOut();
+        }
+    }, 50);
+}
+
+window.submitTextAnswer = function() {
+    if (currentQuestionType !== 'text') return;
+    const input = textInputField.value.trim();
+    const isCorrect = (input === currentCorrectText);
+    processResult(isCorrect);
+};
+
+textInputField.addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        submitTextAnswer();
+    }
+});
+
+window.answer = function(selectedIndex, correctIndex) {
+    processResult(selectedIndex === correctIndex);
+};
+
+function processResult(isCorrect) {
+    clearInterval(timerInterval);
+    document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+    textInputField.disabled = true;
+    document.getElementById('text-answer-btn').disabled = true;
+
+    const actualLimit = (currentQuestionType === 'text') ? timeLimit * 4 : timeLimit;
+    const multiplier = Math.max(0.1, remainingTime / actualLimit);
+    const currentEnemy = enemies[currentRound];
+    let msg = "";
+
+    if (isCorrect) {
+        if (isPlayerTurn) {
+            const damage = Math.floor(30 * multiplier);
+            enemyHp -= damage;
+            msg = `${currentEnemy.shortName}は ${damage} のダメージを受けた`;
+        } else {
+            const rawDamage = Math.floor(currentEnemy.baseAtk * (1 - multiplier));
+            const finalDamage = rawDamage <= 5 ? 0 : rawDamage;
+            playerHp -= finalDamage;
+            msg = finalDamage === 0 ? "防御成功！プレイヤーはノーダメージ" : `プレイヤーは ${finalDamage} のダメージを受けた`;
+        }
+    } else {
+        // 間違えた時は必ずプレイヤーの次ターンをスキップ
+        playerIsSkipped = true; 
+        if (isPlayerTurn) {
+            msg = "攻撃失敗！自分の次ターン休み。";
+        } else {
+            const finalDamage = currentEnemy.baseAtk;
+            playerHp -= finalDamage;
+            msg = `防御失敗！自分の次ターン休み。 ${finalDamage} の大ダメージを受けた！`;
+        }
+    }
+
+    resultArea.innerText = msg;
+    log(msg);
+    textInputField.disabled = false;
+    document.getElementById('text-answer-btn').disabled = false;
+    resolveTurn();
+}
+
+function timeOut() {
+    const currentEnemy = enemies[currentRound];
+    // 時間切れの時も必ずプレイヤーの次ターンをスキップ
+    playerIsSkipped = true; 
+    let msg = "";
+    if (isPlayerTurn) {
+        msg = "時間切れ！自分の次ターン休み。";
+    } else {
+        playerHp -= currentEnemy.baseAtk;
+        msg = `時間切れ！自分の次ターン休み。 ${currentEnemy.baseAtk} の大ダメージを受けた！`;
+    }
+    resultArea.innerText = msg;
+    log(msg);
+    resolveTurn();
+}
+
+// ===================== リズムフェーズ =====================
+let rhythmStartTime;
+const rhythmDuration = 1000;
+function startRhythmPhase() {
+    document.getElementById('quiz-area').style.display = 'none';
+    document.getElementById('rhythm-area').style.display = 'flex';
+    document.getElementById('turn-indicator').innerText = "【回復チャンス】";
+    document.getElementById('turn-indicator').style.color = "lime";
+    resultArea.innerText = "";
+    rhythmStartTime = performance.now();
+    function animateNote(time) {
+        const elapsed = time - rhythmStartTime;
+        const cycle = (elapsed / rhythmDuration) % 2;
+        const progress = cycle <= 1 ? cycle : 2 - cycle;
+        document.getElementById('rhythm-note').style.left = (progress * 100) + "%";
+        rhythmAnimFrame = requestAnimationFrame(animateNote);
+    }
+    rhythmAnimFrame = requestAnimationFrame(animateNote);
+}
+window.hitRhythm = function() {
+    cancelAnimationFrame(rhythmAnimFrame);
+    const pos = parseFloat(document.getElementById('rhythm-note').style.left) / 100;
+    const accuracy = Math.abs(0.5 - pos);
+    if (accuracy < 0.1) {
+        log("PERFECT!! プレイヤーのHPが 10 回復！");
+        playerHp += 10;
+    } else if (accuracy < 0.2) {
+        log("GOOD! プレイヤーのHPが 5 回復！");
+        playerHp += 5;
+    } else {
+        log("回復失敗！");
+    }
+    playerHp = Math.min(playerHp, playerMaxHp);
+    updatePlayerHpBar();
+    setTimeout(resolveTurn, 1000);
+};
+
+// ===================== ターン解決 =====================
+function resolveTurn() {
+    updatePlayerHpBar();
+    updateEnemyHpBar();
+    const currentEnemy = enemies[currentRound];
+    setTimeout(() => {
+        if (playerHp <= 0) {
+            resultArea.innerText = `${currentEnemy.shortName}「${currentEnemy.lines.win}」`;
+            log("<span style='color:red;'><b>プレイヤーは倒れた...GAME OVER</b></span>");
+            document.getElementById('turn-indicator').innerText = "GAME OVER";
+            return;
+        }
+        if (enemyHp <= 0) {
+            resultArea.innerText = `${currentEnemy.shortName}「${currentEnemy.lines.lose}」`;
+            log(`<span style='color:gold;'><b>${currentEnemy.name} を倒した！</b></span>`);
+            if (currentRound === 0) inventory.bearOil += 1;
+            else if (currentRound === 1) { inventory.wisdom += 1; inventory.croquette += 1; }
+            updateItemUI();
+            currentRound++;
+            if (currentRound === 3) showGameClear();
+            else if (currentRound === 4) showTrueEnding();
+            else {
+                const intermission = document.getElementById('intermission-screen');
+                document.getElementById('intermission-msg').innerText = `${currentEnemy.name} を倒した！勝利！`;
+                intermission.style.display = 'flex';
+            }
+            return;
+        }
+        nextAction();
+    }, 1500);
+}
+
+// ===================== GAME CLEAR & 裏ボス =====================
+function showGameClear() {
+    log("<b style='color:lime;'>全ステージクリア！世界に平和が戻った！</b>");
+    const cs = document.getElementById('clear-screen');
+    cs.style.display = 'flex';
+    clearTapCount = 0;
+    clearTapTimer = null;
+    document.getElementById('clear-top-zone').onclick = function() {
+        clearTapCount++;
+        if (clearTapTimer) clearTimeout(clearTapTimer);
+        clearTapTimer = setTimeout(() => { clearTapCount = 0; }, 1500);
+        if (clearTapCount >= 3) {
+            clearTapCount = 0;
+            clearTimeout(clearTapTimer);
+            triggerSecretBoss();
+        }
+    };
+}
+
+function triggerSecretBoss() {
+    const overlay = document.getElementById('crack-overlay');
+    overlay.style.display = 'block';
+    const top = document.getElementById('crack-top');
+    const bot = document.getElementById('crack-bottom');
+    document.getElementById('clear-screen').style.display = 'none';
+    requestAnimationFrame(() => { top.style.height = '45%'; bot.style.height = '45%'; });
+    const shakeEl = document.getElementById('game-container');
+    let shakeCount = 0;
+    const shakeInterval = setInterval(() => {
+        shakeEl.style.transform = `translateX(${(Math.random() - 0.5) * 12}px)`;
+        shakeCount++;
+        if (shakeCount > 20) { clearInterval(shakeInterval); shakeEl.style.transform = ''; }
+    }, 50);
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        top.style.height = '0';
+        bot.style.height = '0';
+        const intro = document.getElementById('secret-intro');
+        intro.style.display = 'flex';
+        setTimeout(() => {
+            intro.style.display = 'none';
+            currentRound = 3; 
+            playerHp = Math.min(playerMaxHp, playerHp + 20);
+            updatePlayerHpBar();
+            startEnemy();
+        }, 3000);
+    }, 1000);
+}
+
+function showTrueEnding() {
+    log("<b style='color:#df80ff;'>ゼルファを倒した！本当の平和が訪れた！</b>");
+    const cs = document.getElementById('clear-screen');
+    cs.innerHTML = `
+        <h2 style="color:#df80ff; font-size:40px; text-shadow:0 0 20px #9900ff;">TRUE CLEAR!</h2>
+        <p style="color:#bf60ff; font-size:18px; margin-top:10px;">魔界の脅威も滅びた。<br>プレイヤーは真の英雄となった。</p>
+    `;
+    cs.style.display = 'flex';
+}
+</script>
+</body>
+</html>
